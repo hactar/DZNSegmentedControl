@@ -25,6 +25,7 @@
 @end
 
 @implementation DZNSegmentedControl
+@synthesize barPosition = _barPosition;
 @synthesize height = _height;
 @synthesize width = _width;
 
@@ -51,9 +52,6 @@
 {
     self = [super initWithFrame:frame];
     if (self) {
-        _width = CGRectGetWidth(frame);
-        _height = CGRectGetHeight(frame);
-
         [self commonInit];
     }
     return self;
@@ -129,7 +127,7 @@
         CGFloat width = self.bounds.size.width / self.numberOfSegments;
         CGFloat height = self.bounds.size.height;
         CGFloat x = width*idx;
-
+        
         CGRect rect = CGRectMake(x, 0.0f, width, height);
         
         [button setFrame:rect];
@@ -150,6 +148,16 @@
     [self configureAccessoryViews];
 }
 
+- (void)willMoveToSuperview:(UIView *)newSuperview
+{
+    [super willMoveToSuperview:newSuperview];
+    
+    // Only lay out its subviews if a superview is available
+    if (newSuperview) {
+        [self layoutIfNeeded];
+    }
+}
+
 - (void)didMoveToWindow
 {
     [super didMoveToWindow];
@@ -161,6 +169,16 @@
     [self configureSegments];
     
     [self layoutIfNeeded];
+}
+
+- (void)layoutIfNeeded
+{
+    // Only lay out its subviews if a superview is available
+    if (!self.superview) {
+        return;
+    }
+    
+    [super layoutIfNeeded];
 }
 
 - (CGSize)intrinsicContentSize
@@ -195,13 +213,22 @@
             [buttons addObject:view];
         }
     }
-    return buttons;
+    NSSortDescriptor *sortByName = [NSSortDescriptor sortDescriptorWithKey:@"tag"
+                                                                 ascending:YES];
+    NSArray *sortDescriptors = [NSArray arrayWithObject:sortByName];
+    NSArray *sortedArray = [buttons sortedArrayUsingDescriptors:sortDescriptors];
+    return sortedArray;
 }
 
 - (UIButton *)buttonAtIndex:(NSUInteger)segment
 {
     if (self.items.count > 0 && segment < [self buttons].count) {
-        return (UIButton *)[[self buttons] objectAtIndex:segment];
+        for (UIButton *tempButton in [self buttons]) {
+            if (tempButton.tag == segment) {
+                return tempButton;
+            }
+        }
+        return nil;
     }
     return nil;
 }
@@ -262,11 +289,11 @@
     
     if (!color) {
         switch (state) {
-            case UIControlStateNormal:              return [UIColor darkGrayColor];
-            case UIControlStateHighlighted:         return self.tintColor;
+            case UIControlStateNormal:              return [UIColor whiteColor];
+            case UIControlStateHighlighted:         return [UIColor darkGrayColor];
             case UIControlStateDisabled:            return [UIColor lightGrayColor];
-            case UIControlStateSelected:            return self.tintColor;
-            default:                                return self.tintColor;
+            case UIControlStateSelected:            return [UIColor darkGrayColor];
+            default:                                return [UIColor darkGrayColor];
         }
     }
     
@@ -304,14 +331,7 @@
     }
     
     CGRect frame = CGRectZero;
-    CGFloat appropriateY = button.frame.size.height-self.selectionIndicatorHeight;
-    
-    if (self.selectionIndicatorPosition != UIBarPositionAny) {
-        frame.origin.y = (self.selectionIndicatorPosition > UIBarPositionBottom) ? 0.0f : appropriateY;
-    }
-    else {
-        frame.origin.y = (self.barPosition > UIBarPositionBottom) ? 0.0f : appropriateY;
-    }
+    frame.origin.y = (_barPosition > UIBarPositionBottom) ? 0.0f : 0.0f;
     
     if (self.autoAdjustSelectionIndicatorWidth) {
         
@@ -324,11 +344,11 @@
             width = button.frame.size.width;
         }
         
-        frame.size = CGSizeMake(width, self.selectionIndicatorHeight);
+        frame.size = CGSizeMake(width, button.frame.size.height);
         frame.origin.x = (button.frame.size.width*(self.selectedSegmentIndex))+(button.frame.size.width-frame.size.width)/2;
     }
     else {
-        frame.size = CGSizeMake(button.frame.size.width, self.selectionIndicatorHeight);
+        frame.size = CGSizeMake(button.frame.size.width, button.frame.size.height);
         frame.origin.x = (button.frame.size.width*(self.selectedSegmentIndex));
     }
     
@@ -381,31 +401,8 @@
     return fontSize;
 }
 
-- (UIBarPosition)barPosition
-{
-    if (self.delegate && [self.delegate respondsToSelector:@selector(positionForBar:)]) {
-        return [self.delegate positionForBar:self];
-    }
-    return UIBarPositionAny;
-}
-
-- (UIBarPosition)selectionIndicatorPosition
-{
-    if (self.delegate && [self.delegate respondsToSelector:@selector(positionForSelectionIndicator:)]) {
-        return [self.delegate positionForSelectionIndicator:self];
-    }
-    return UIBarPositionAny;
-}
-
 
 #pragma mark - Setter Methods
-
-- (void)setDelegate:(id<DZNSegmentedControlDelegate>)delegate
-{
-    _delegate = delegate;
-    
-    [self layoutIfNeeded];
-}
 
 - (void)setFrame:(CGRect)frame
 {
@@ -478,7 +475,7 @@
     [super setTintColor:color];
     
     if (self.isImageMode) {
-
+        
         for (UIButton *btn in self.buttons) {
             
             UIImage *normalImage = [btn imageForState:UIControlStateNormal];
@@ -492,6 +489,12 @@
         [self setTitleColor:color forState:UIControlStateHighlighted];
         [self setTitleColor:color forState:UIControlStateSelected];
     }
+}
+
+- (void)setDelegate:(id<DZNSegmentedControlDelegate>)delegate
+{
+    _delegate = delegate;
+    _barPosition = [delegate positionForBar:self];
 }
 
 - (void)setScrollOffset:(CGPoint)scrollOffset contentSize:(CGSize)contentSize
@@ -792,12 +795,6 @@
     button.enabled = enabled;
 }
 
-- (BOOL)isSegmentAtIndexEnabled:(NSUInteger)segment
-{
-    UIButton *button = [self buttonAtIndex:segment];
-    return button.enabled;
-}
-
 - (void)setHairlineColor:(UIColor *)color
 {
     if (self.initializing) {
@@ -842,7 +839,7 @@
     button.exclusiveTouch = YES;
     button.tag = segment;
     
-    [self insertSubview:button belowSubview:self.selectionIndicator];
+    [self insertSubview:button aboveSubview:self.selectionIndicator];
 }
 
 - (void)configureSegments
@@ -857,7 +854,7 @@
 - (void)configureAccessoryViews
 {
     self.selectionIndicator.frame = [self selectionIndicatorRect];
-    self.selectionIndicator.backgroundColor = self.tintColor;
+    self.selectionIndicator.backgroundColor = [UIColor whiteColor];
     
     self.hairline.frame = [self hairlineRect];
 }
@@ -894,7 +891,7 @@
             countString = [[[self class] defaultFormatter] stringFromNumber:count];
         }
         else {
-            countString = [NSString stringWithFormat:@"%@", count];
+            countString = self.topItems[segment];
         }
         
         NSString *resultString = self.inverseTitles ? [breakString stringByAppendingString:countString] : [countString stringByAppendingString:breakString];
@@ -918,6 +915,7 @@
 - (void)willSelectedButton:(id)sender
 {
     UIButton *button = (UIButton *)sender;
+    NSLog(@"willselectbutton button is %@",sender);
     
     if (self.selectedSegmentIndex != button.tag) {
         [self setSelectedSegmentIndex:button.tag animated:YES];

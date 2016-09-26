@@ -26,6 +26,8 @@ enum {
 @property (nonatomic, weak) IBOutlet id <DZNSegmentedControlDelegate> delegate;
 /** The items displayed on the control. */
 @property (nonatomic, retain) NSArray *items;
+/** The items displayed on the control. */
+@property (nonatomic, retain) NSArray *topItems;
 /** The index number identifying the selected segment (that is, the last segment touched). */
 @property (nonatomic) NSInteger selectedSegmentIndex;
 /** Returns the number of segments the receiver has. */
@@ -115,7 +117,7 @@ enum {
 /**
  Sets the content of a segment to a given image.
  A segment can only have an image or a title; it can’t have both. There is no default image.
-
+ 
  @param image An image object to display in the segment.
  @param segment An index number identifying a segment in the control. It must be a number between 0 and the number of segments (numberOfSegments) minus 1; values exceeding this upper range are pinned to it.
  */
@@ -128,15 +130,6 @@ enum {
  @param segment An index number identifying a segment in the control. It must be a number between 0 and the number of segments (numberOfSegments) minus 1; values exceeding this upper range are pinned to it.
  */
 - (void)setEnabled:(BOOL)enabled forSegmentAtIndex:(NSUInteger)segment;
-
-
-/**
-  Returns whether the given segment is selected or not
- 
- @param segment An index number identifying a segment in the control. It must be a number between 0 and the number of segments (numberOfSegments) minus 1; values exceeding this upper range are pinned to it.
- @returns Returns whether the given segment is selected or not
- */
-- (BOOL)isSegmentAtIndexEnabled:(NSUInteger)segment;
 
 /**
  Sets a contentOffset and contentSize to enable scrollView tracking.
@@ -171,14 +164,7 @@ enum {
 @end
 
 /**
- This protocol conforms to the UIBarPositioningDelegate protocol to support the any directional decoration drawing accordingly (ie: the hairline and the selection indicator bar).
+ The DZNSegmentedControlDelegate protocol defines the interface that DZNSegmentedControl delegate objects implement to manage the segmented control behavior. This protocol declares no methods of its own but conforms to the UIBarPositioningDelegate protocol to support the positioning of a segmented control when it is moved to a window.
  */
 @protocol DZNSegmentedControlDelegate <UIBarPositioningDelegate>
-@optional
-
-/**
- Implement this method to position the selector indicator either at the top or bottom of the view. Default is UIBarPositionAny which means the selector indicator will be placed at the bottom. If not implemented, the value for positionForBar: will be used instead.
- */
-- (UIBarPosition)positionForSelectionIndicator:(id<UIBarPositioning>)bar;
-
 @end
